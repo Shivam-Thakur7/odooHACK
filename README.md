@@ -91,8 +91,9 @@ npm run start
 ## 👥 Collaborators
 
 - Shivam Thakur – Frontend, Deployment, Vision
-- [Friend’s Name] – AI Model, Backend Integration
-- [Another Teammate] – UI/UX, Documentation
+- Piyush Wahi – AI Model, Backend Integration
+- Poorvika – API,Video
+- Riya Bansal-DataBase
 
 ---
 
