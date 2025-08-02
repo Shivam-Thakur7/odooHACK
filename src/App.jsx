@@ -9,6 +9,7 @@ import Testimonials from './components/Testimonials';
 import Profile from './components/Profile';
 import SignIn from './components/SignIn';
 import Contact from './components/Contact';
+import Services from './components/services';
 import { motion, AnimatePresence } from 'framer-motion';
 import TutorialSlides from './components/TutorialSlides';
 import CivicReporter from './components/CivicReporter';
@@ -61,6 +62,7 @@ function MainContent() {
 				<Route path="/" element={
 					<>
 						<section id="hero"><Hero /></section>
+						<section id="services"><Services /></section>
 						<section id="about"><About /></section>
 						<section id="testimonials"><Testimonials /></section>
 						<section id="faq"><FAQ /></section>
