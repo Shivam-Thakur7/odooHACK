@@ -1,0 +1,2 @@
+# odooHACK
+hackathon project
