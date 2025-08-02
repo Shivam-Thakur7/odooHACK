@@ -9,7 +9,7 @@ import Testimonials from './components/Testimonials';
 import Profile from './components/Profile';
 import SignIn from './components/SignIn';
 import Contact from './components/Contact';
-import Services from './components/services';
+import Services from './components/Services';
 import { motion, AnimatePresence } from 'framer-motion';
 import TutorialSlides from './components/TutorialSlides';
 import CivicReporter from './components/CivicReporter';
