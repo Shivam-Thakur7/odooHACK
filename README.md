@@ -96,8 +96,8 @@ npm run start
 
 ---
 
-## 📹 Demo Video (to be added)
-[Link Placeholder]
+## 📹 AI MODEL 
+[https://drive.google.com/file/d/1Dc-AlsD8dKsqi22zd66ezdP0JwkTl2X0/view?usp=drive_link]
 
 ---
 
