@@ -4,11 +4,12 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import About from './components/About';
 import FAQ from './components/FAQ';
+import Services from './components/Services';
 import Footer from './components/Footer';
 import Testimonials from './components/Testimonials';
 import Profile from './components/Profile';
 import SignIn from './components/SignIn';
-import Contact from './components/Contact';
+import Contact from './components/Contact'; // ✅ IMPORTED HERE
 import { motion, AnimatePresence } from 'framer-motion';
 import TutorialSlides from './components/TutorialSlides'; // Import TutorialSlides component
 // Main content component
@@ -60,7 +61,7 @@ function MainContent() {
 				<Route path="/" element={
 					<>
 						<section id="hero"><Hero /></section>
-
+						<section id="services"><Services /></section>
 						<section id="about"><About /></section>
 						<section id="testimonials"><Testimonials /></section>
 						<section id="faq"><FAQ /></section>
@@ -70,6 +71,8 @@ function MainContent() {
 				} />
 				<Route path="/profile" element={user ? <Profile user={user} /> : <SignIn onSignIn={handleSignIn} />} />
 				<Route path="/signin" element={<SignIn onSignIn={handleSignIn} />} />
+
+				{/* ✅ NEW DRIVEWAY GATES ROUTE */}
 				<Route path="/TutorialSlides" element={<TutorialSlides />} /> {/* New route for TutorialSlides */}
 
 			</Routes>
