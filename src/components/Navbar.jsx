@@ -34,7 +34,7 @@ function Navbar({ user, onSignOut }) {
 
   const navItems = [
     { name: 'Home', path: '/' },
-    { name: 'Services', path: '/#services' },
+    { name: 'Services', path: '/report' },
     { name: 'Categories', path: '/#about' },
     { name: 'Testimonials', path: '/#testimonials' },
     { name: 'FAQ', path: '/#faq' },

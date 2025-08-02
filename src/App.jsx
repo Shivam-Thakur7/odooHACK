@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import About from './components/About';
 import FAQ from './components/FAQ';
-import Services from './components/Services';
 import Footer from './components/Footer';
 import Testimonials from './components/Testimonials';
 import Profile from './components/Profile';
 import SignIn from './components/SignIn';
-import Contact from './components/Contact'; // ✅ IMPORTED HERE
+import Contact from './components/Contact';
 import { motion, AnimatePresence } from 'framer-motion';
-import TutorialSlides from './components/TutorialSlides'; // Import TutorialSlides component
-// Main content component
+import TutorialSlides from './components/TutorialSlides';
+import CivicReporter from './components/CivicReporter';
+
 function MainContent() {
 	const [user, setUser] = useState(null);
 	const [showWelcome, setShowWelcome] = useState(false);
@@ -61,7 +61,6 @@ function MainContent() {
 				<Route path="/" element={
 					<>
 						<section id="hero"><Hero /></section>
-						<section id="services"><Services /></section>
 						<section id="about"><About /></section>
 						<section id="testimonials"><Testimonials /></section>
 						<section id="faq"><FAQ /></section>
@@ -71,19 +70,16 @@ function MainContent() {
 				} />
 				<Route path="/profile" element={user ? <Profile user={user} /> : <SignIn onSignIn={handleSignIn} />} />
 				<Route path="/signin" element={<SignIn onSignIn={handleSignIn} />} />
-
-				{/* ✅ NEW DRIVEWAY GATES ROUTE */}
-				<Route path="/TutorialSlides" element={<TutorialSlides />} /> {/* New route for TutorialSlides */}
-
+				<Route path="/tutorialslides" element={<TutorialSlides />} />
+				<Route path="/report" element={<CivicReporter />} />
 			</Routes>
 		</>
 	);
 }
 
-// App with Router context
 function App() {
 	return (
-		<Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+		<Router>
 			<MainContent />
 		</Router>
 	);
