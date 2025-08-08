@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 export default function CivicReporter() {
   const mapRef = useRef(null);
-  const azureMapsKey = '2CgXwnuDlRmB4SrahHCV6UL3k2DCI3K9WPANNj8oyOQjYJSJYebCJQQJ99BHACYeBjFFCASfAAAgAZMP121o'; // replace with your valid key
+  const azureMapsKey = ''; // replace with your valid key
   const [uploadedImages, setUploadedImages] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
