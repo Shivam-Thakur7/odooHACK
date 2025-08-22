@@ -1,8 +1,10 @@
+
 import { useEffect, useRef, useState } from 'react';
+import api from '../api';
 
 export default function CivicReporter() {
   const mapRef = useRef(null);
-  const azureMapsKey = '2CgXwnuDlRmB4SrahHCV6UL3k2DCI3K9WPANNj8oyOQjYJSJYebCJQQJ99BHACYeBjFFCASfAAAgAZMP121o'; // replace with your valid key
+  const azureMapsKey = '2CgXwnuDlRmB4SrahHCV6UL3k2DCI3K9WPANNj8oyOQjYJSJYebCJQQJ99BHACYeBjFFCASfAAAgAZMP121o';
   const [uploadedImages, setUploadedImages] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -10,7 +12,24 @@ export default function CivicReporter() {
   const [lightboxSrc, setLightboxSrc] = useState('');
   const [map, setMap] = useState(null);
   const [importance, setImportance] = useState('low');
-  const [timestamp, setTimestamp] = useState('');
+  const [issues, setIssues] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  const categoryColors = {
+    "💣": "black",
+    "💡": "gold",
+    "🚰": "blue",
+    "🧹": "green",
+    "🚧": "brown",
+    "🚨": "red",
+    "Other": "purple"
+  };
+
+  const importanceColors = {
+    low: 'green',
+    medium: 'orange',
+    high: 'red'
+  };
 
   useEffect(() => {
     const loadAzureMaps = async () => {
@@ -31,95 +50,78 @@ export default function CivicReporter() {
       }
     };
 
-    const initMap = () => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const center = [position.coords.longitude, position.coords.latitude];
-          const m = new window.atlas.Map(mapRef.current, {
-            center,
-            zoom: 14,
-            style: 'satellite_road_labels',
-            authOptions: {
-              authType: 'subscriptionKey',
-              subscriptionKey: azureMapsKey
-            }
-          });
+    const initMap = async () => {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
 
-          m.controls.add(new window.atlas.control.ZoomControl(), { position: 'top-right' });
-          m.controls.add(new window.atlas.control.CompassControl(), { position: 'top-right' });
-          m.controls.add(new window.atlas.control.PitchControl(), { position: 'top-right' });
+        const center = [position.coords.longitude, position.coords.latitude];
+        const m = new window.atlas.Map(mapRef.current, {
+          center,
+          zoom: 13,
+          style: 'road',
+          authOptions: {
+            authType: 'subscriptionKey',
+            subscriptionKey: azureMapsKey
+          }
+        });
 
-          setMap(m);
-        },
-        (err) => {
-          console.error("Geolocation failed:", err);
-          alert('Location access denied.');
-        }
-      );
+        m.controls.add(new window.atlas.control.ZoomControl(), { position: 'top-right' });
+        m.controls.add(new window.atlas.control.CompassControl(), { position: 'top-right' });
+        m.controls.add(new window.atlas.control.PitchControl(), { position: 'top-right' });
+
+        setMap(m);
+        fetchIssues(center, m);
+      } catch (err) {
+        console.error("Failed to initialize map or fetch issues", err);
+        alert("Could not load map or issues.");
+      }
+    };
+
+    const fetchIssues = async (center, map) => {
+      try {
+        const res = await api.get(`/issues/nearby?lat=${center[1]}&long=${center[0]}&radius=5000`);
+        const filtered = selectedCategory ? res.data.filter(i => i.category === selectedCategory) : res.data;
+        setIssues(filtered);
+
+        filtered.forEach(issue => {
+          if (issue.lat && issue.long) {
+            const color = categoryColors[issue.category] || 'gray';
+            const border = importanceColors[issue.importance || 'low'] || 'gray';
+
+            const markerEl = document.createElement('div');
+            markerEl.style.width = '22px';
+            markerEl.style.height = '22px';
+            markerEl.style.background = color;
+            markerEl.style.border = `3px solid ${border}`;
+            markerEl.style.borderRadius = '50%';
+            markerEl.style.cursor = 'pointer';
+            markerEl.title = `${issue.title} - ${issue.category}`;
+            markerEl.style.boxShadow = '0 0 6px rgba(0,0,0,0.3)';
+
+            markerEl.onclick = () => {
+              map.setCamera({ center: [issue.long, issue.lat], zoom: 17 });
+              alert(
+                `📍 Issue Details\n\n📝 Title: ${issue.title}\n📂 Category: ${issue.category}\n🧾 Description: ${issue.desc}\n🔥 Importance: ${issue.importance || 'low'}`
+              );
+            };
+
+            const marker = new window.atlas.HtmlMarker({
+              position: [issue.long, issue.lat],
+              htmlContent: markerEl
+            });
+
+            map.markers.add(marker);
+          }
+        });
+      } catch (err) {
+        console.error('Failed to fetch issues', err);
+      }
     };
 
     loadAzureMaps();
-  }, []);
-
-  const categoryColors = {
-    "💣": "black",
-    "💡": "gold",
-    "🚰": "blue",
-    "🧹": "green",
-    "🚧": "brown",
-    "🚨": "red",
-    "Other": "purple"
-  };
-
-  const importanceColors = {
-    low: 'green',
-    medium: 'orange',
-    high: 'red'
-  };
-
-  const handleReport = async () => {
-    const cat = document.getElementById('category').value;
-    const desc = document.getElementById('description').value.trim();
-    const addr = document.getElementById('address').value.trim();
-    if (!desc) return alert('Please add a description.');
-
-    let coords = null;
-    if (addr) coords = await geocodeAddress(addr);
-    else if (navigator.geolocation) coords = await new Promise(res =>
-      navigator.geolocation.getCurrentPosition(
-        p => res([p.coords.longitude, p.coords.latitude]),
-        () => res(null)
-      )
-    );
-    if (!coords) return alert('Could not determine location.');
-
-    const color = categoryColors[cat] || 'gray';
-    const borderColor = importanceColors[importance] || 'gray';
-
-    const circle = new window.atlas.HtmlMarker({
-      position: coords,
-      htmlContent: `<div style="width:20px;height:20px;border-radius:50%;background:${color};border: 3px solid ${borderColor}"></div>`
-    });
-
-    map.markers.add(circle);
-    map.setCamera({ center: coords, zoom: 17 });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 2000);
-
-    setUploadedImages([]);
-    document.getElementById('description').value = '';
-    document.getElementById('address').value = '';
-  };
-
-  const geocodeAddress = async (addr) => {
-    const url = `https://atlas.microsoft.com/search/address/json?api-version=1.0&subscription-key=${azureMapsKey}&query=${encodeURIComponent(addr)}`;
-    const resp = await fetch(url).then(r => r.json());
-    if (resp.results && resp.results.length) {
-      const pos = resp.results[0].position;
-      return [pos.lon, pos.lat];
-    }
-    return null;
-  };
+  }, [selectedCategory]);
 
   const handleFileUpload = (files) => {
     const total = uploadedImages.length + files.length;
@@ -136,122 +138,123 @@ export default function CivicReporter() {
     setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleReport = async () => {
+    const cat = document.getElementById('category')?.value;
+    const desc = document.getElementById('description')?.value.trim();
+    const addr = document.getElementById('address')?.value.trim();
+
+    if (!desc) return alert('Please add a description.');
+    if (!map) return alert("Map not initialized. Please wait...");
+
+    let coords = null;
+    if (addr) {
+      const url = `https://atlas.microsoft.com/search/address/json?api-version=1.0&subscription-key=${azureMapsKey}&query=${encodeURIComponent(addr)}`;
+      const resp = await fetch(url).then(r => r.json());
+      if (resp.results && resp.results.length) {
+        const pos = resp.results[0].position;
+        coords = [pos.lon, pos.lat];
+      }
+    } else if (navigator.geolocation) {
+      coords = await new Promise(res =>
+        navigator.geolocation.getCurrentPosition(
+          p => res([p.coords.longitude, p.coords.latitude]),
+          () => res(null)
+        )
+      );
+    }
+
+    if (!coords) return alert('Could not determine location.');
+
+    const existing = issues.find(i => Math.abs(i.lat - coords[1]) < 0.0005 && Math.abs(i.long - coords[0]) < 0.0005 && i.desc === desc);
+    if (existing) return alert('⚠️ Similar issue already exists nearby. Consider upvoting it.');
+
+    const formData = new FormData();
+    formData.append('title', `${cat} Issue`);
+    formData.append('desc', desc);
+    formData.append('lat', coords[1]);
+    formData.append('long', coords[0]);
+    formData.append('category', cat);
+    formData.append('is_anonymous', true);
+    formData.append('importance', importance);
+    uploadedImages.forEach(file => {
+      formData.append('images', file);
+    });
+
+    try {
+      await api.post('/issues', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setShowPopup(true);
+      setTimeout(() => setShowPopup(false), 2000);
+      setUploadedImages([]);
+      document.getElementById('description').value = '';
+      document.getElementById('address').value = '';
+    } catch (err) {
+      console.error("❌ Backend error:", err.response?.data || err.message);
+      alert(err.response?.data?.error || 'Failed to report issue');
+    }
+  };
+
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', paddingTop: 80, position: 'relative', zIndex: 1 }}>
+    <div className="pt-20 px-4 font-sans">
+      <div id="map" ref={mapRef} className="w-full h-[400px] mb-6 rounded shadow border" />
 
-      <div id="map" style={{ width: '100%', height: '400px', marginBottom: 20 }} ref={mapRef}></div>
+      <div className="bg-white p-4 rounded shadow">
+        <h3 className="text-xl font-semibold mb-3">📢 Report an Issue</h3>
 
-      <div style={{ padding: 10, background: '#f9f9f9' }}>
-        <h3>Report an Issue</h3>
+        <label>Category:</label>
+        <select id="category" className="w-full mb-2 border p-2 rounded">
+          <option value="💣">Potholes</option>
+          <option value="💡">Lighting</option>
+          <option value="🚰">Water</option>
+          <option value="🧹">Cleanliness</option>
+          <option value="🚧">Obstructions</option>
+          <option value="🚨">Public Safety</option>
+          <option value="Other">Other</option>
+        </select>
 
-        <div style={{ marginBottom: 10 }}>
-          <label>Category:</label><br />
-          <select id="category" style={{ width: '100%' }}>
-            <option value="💣">Potholes</option>
-            <option value="💡">Lighting</option>
-            <option value="🚰">Water</option>
-            <option value="🧹">Cleanliness</option>
-            <option value="🚧">Obstructions</option>
-            <option value="🚨">Public Safety</option>
-            <option value="Other">Other</option>
-          </select>
+        <label>Description:</label>
+        <input type="text" id="description" className="w-full mb-2 border p-2 rounded" placeholder="Describe the issue" />
+
+        <label>Address (optional):</label>
+        <input type="text" id="address" className="w-full mb-2 border p-2 rounded" placeholder="Enter address or use location" />
+
+        <label>Importance:</label>
+        <select value={importance} onChange={(e) => setImportance(e.target.value)} className="w-full mb-2 border p-2 rounded">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+
+        <div className="flex flex-wrap gap-2 mb-2">
+          <label htmlFor="fileUpload" className="cursor-pointer bg-blue-600 text-white py-1 px-3 rounded">📁 Upload</label>
+          <input id="fileUpload" type="file" accept="image/*" multiple className="hidden" onChange={e => handleFileUpload(Array.from(e.target.files))} />
+
+          <label htmlFor="cameraInput" className="cursor-pointer bg-green-600 text-white py-1 px-3 rounded">📷 Camera</label>
+          <input id="cameraInput" type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={e => handleFileUpload(Array.from(e.target.files))} />
         </div>
 
-        <div style={{ marginBottom: 10 }}>
-          <label>Description:</label><br />
-          <input type="text" id="description" placeholder="Description" style={{ width: '100%' }} />
-        </div>
-
-        <div style={{ marginBottom: 10 }}>
-          <label>Address:</label><br />
-          <input type="text" id="address" placeholder="Address (if location denied)" style={{ width: '100%' }} />
-        </div>
-
-        <div style={{ marginBottom: 10 }}>
-          <label>Importance:</label><br />
-          <select value={importance} onChange={(e) => setImportance(e.target.value)} style={{ width: '100%' }}>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 10 }}>
-          <label>Time:</label><br />
-          <input type="datetime-local" value={timestamp} onChange={(e) => setTimestamp(e.target.value)} style={{ width: '100%' }} />
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-          <label htmlFor="fileUpload" className="upload-btn">📁 Upload</label>
-          <input id="fileUpload" type="file" style={{ display: 'none' }} accept="image/*" multiple onChange={(e) => handleFileUpload(Array.from(e.target.files))} />
-          <label htmlFor="cameraInput" className="upload-btn">📷 Camera</label>
-          <input id="cameraInput" type="file" style={{ display: 'none' }} accept="image/*" capture="environment" multiple onChange={(e) => handleFileUpload(Array.from(e.target.files))} />
-        </div>
-
-        <div className="preview-grid" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div className="flex flex-wrap gap-2 mb-3">
           {uploadedImages.map((file, idx) => {
             const url = URL.createObjectURL(file);
             return (
-              <div key={idx} style={{ position: 'relative' }}>
-                <img src={url} alt='' style={{ maxHeight: 80, cursor: 'pointer' }} onClick={() => setLightboxSrc(url)} />
-                <span onClick={() => removeImage(idx)} style={{ position: 'absolute', top: -8, right: -8, background: 'white', borderRadius: '50%', fontSize: 12, padding: '2px 5px', cursor: 'pointer' }}>❌</span>
+              <div key={idx} className="relative">
+                <img src={url} alt="preview" className="h-20 rounded cursor-pointer" onClick={() => setLightboxSrc(url)} />
+                <span onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 bg-white border rounded-full text-xs px-1 cursor-pointer">❌</span>
               </div>
-            )
+            );
           })}
         </div>
 
-        <button onClick={handleReport} style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', cursor: 'pointer' }}>
-          Report Issue
-        </button>
-
-        {/* Custom Legend */}
-<div
-  style={{
-    position: "absolute",
-    top: "90px",
-    left: "10px",
-    background: "white",
-    padding: "10px 15px",
-    borderRadius: "8px",
-    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
-    zIndex: 1000,
-  }}
->
-<h4 style={{ marginTop: 0, fontSize: "16px", marginBottom: "8px" }}>Issue Legend</h4>
-<ul style={{ listStyle: "none", paddingLeft: 0, margin: 0 }}>
-  <li style={{ display: "flex", alignItems: "center", fontSize: "14px", marginBottom: "4px" }}>
-    <span style={{ color: "black", marginRight: "6px" }}>⬤</span> Potholes
-  </li>
-  <li style={{ display: "flex", alignItems: "center", fontSize: "14px", marginBottom: "4px" }}>
-    <span style={{ color: "gold", marginRight: "6px" }}>⬤</span> Lighting
-  </li>
-  <li style={{ display: "flex", alignItems: "center", fontSize: "14px", marginBottom: "4px" }}>
-    <span style={{ color: "blue", marginRight: "6px" }}>⬤</span> Water
-  </li>
-  <li style={{ display: "flex", alignItems: "center", fontSize: "14px", marginBottom: "4px" }}>
-    <span style={{ color: "green", marginRight: "6px" }}>⬤</span> Cleanliness
-  </li>
-  <li style={{ display: "flex", alignItems: "center", fontSize: "14px", marginBottom: "4px" }}>
-    <span style={{ color: "brown", marginRight: "6px" }}>⬤</span> Obstructions
-  </li>
-  <li style={{ display: "flex", alignItems: "center", fontSize: "14px", marginBottom: "4px" }}>
-    <span style={{ color: "red", marginRight: "6px" }}>⬤</span> Public Safety
-  </li>
-  <li style={{ display: "flex", alignItems: "center", fontSize: "14px", marginBottom: "4px" }}>
-    <span style={{ color: "purple", marginRight: "6px" }}>⬤</span> Other
-  </li>
-</ul>
-
-</div>
-
+        <button onClick={handleReport} className="bg-blue-600 text-white px-4 py-2 rounded">Report Issue</button>
       </div>
 
-      {showPopup && <div style={{ position: 'fixed', top: 10, right: 10, background: '#28a745', color: 'white', padding: '10px 14px', borderRadius: 5 }}>✅ Issue Registered</div>}
-      {showAlert && <div style={{ position: 'fixed', top: 10, right: 10, background: '#dc3545', color: 'white', padding: '10px 14px', borderRadius: 5 }}>{alertMsg}</div>}
-
+      {showPopup && <div className="fixed top-5 right-5 bg-green-500 text-white px-4 py-2 rounded shadow">✅ Issue Registered</div>}
+      {showAlert && <div className="fixed top-5 right-5 bg-red-500 text-white px-4 py-2 rounded shadow">{alertMsg}</div>}
       {lightboxSrc && (
-        <div onClick={() => setLightboxSrc('')} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
-          <img src={lightboxSrc} alt="lightbox" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: 10 }} />
+        <div onClick={() => setLightboxSrc('')} className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+          <img src={lightboxSrc} alt="zoomed" className="max-w-[90%] max-h-[90%] rounded" />
         </div>
       )}
     </div>
