@@ -4,7 +4,11 @@ import api from '../api';
 
 export default function CivicReporter() {
   const mapRef = useRef(null);
+// <<<<<<< HEAD
   const azureMapsKey = '2CgXwnuDlRmB4SrahHCV6UL3k2DCI3K9WPANNj8oyOQjYJSJYebCJQQJ99BHACYeBjFFCASfAAAgAZMP121o';
+// =======
+//   const azureMapsKey = ''; // replace with your valid key
+// >>>>>>> a8fce464b168ccb344967fc9632748e8433dee3e
   const [uploadedImages, setUploadedImages] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
